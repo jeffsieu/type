@@ -1,0 +1,42 @@
+name: web
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Install flutter
+      uses: subosito/flutter-action@v1.5.3
+      with:
+        # The Flutter version to make available on the path
+        flutter-version: '2.8.1'
+        
+    - run: flutter config --enable-web
+    
+    - run: flutter pub get
+    
+    - run: flutter build web --base-href /
+    
+    - name: Archive Production Artifact
+      uses: actions/upload-artifact@master
+      with:
+        name: web-build
+        path: build/web
+        
+    - name: Download Artifact
+      uses: actions/download-artifact@master
+      with:
+        name: web-build 
+      
+    - name: Deploy to Github Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./build/web
+        cname: type.jeffsieu.com

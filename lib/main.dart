@@ -1,30 +1,38 @@
+import 'dart:async';
 import 'dart:math';
 import 'dart:io' show Platform;
 
 import 'package:another_typing_test/theme_colors.dart';
 import 'package:another_typing_test/typing_context.dart';
+import 'package:another_typing_test/word_generator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  String data = await loadWordList();
+  WordGenerator.initializeWordList(
+      data.split('\n').map((word) => word.trim()).toList());
   runApp(const MyApp());
+}
+
+Future<String> loadWordList() async {
+  return await rootBundle.loadString('assets/words.txt');
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'another typing test',
       theme: ThemeData.from(
-        colorScheme: ColorScheme.dark(
+        colorScheme: const ColorScheme.dark(
           background: Color(0xFF222244),
         ),
-        // primarySwatch: Colors.orange,
-        // // Use monospace font
-        // fontFamily: 'Roboto Mono',
+        textTheme: GoogleFonts.robotoMonoTextTheme(),
       ),
       home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
@@ -40,149 +48,244 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class WordGenerator {
-  final List<String> words = [
-    'apple',
-    'banana',
-    'cherry',
-    'durian',
-    'elderberry',
-    'fig',
-    'grape',
-    'honeydew',
-    'jackfruit',
-    'kiwi',
-    'lemon',
-    'mango',
-    'nectarine',
-    'orange',
-    'papaya',
-    'quince',
-    'raspberry',
-    'strawberry',
-    'tangerine',
-    'watermelon',
-  ];
-
-  static String nextWord() {
-    final random = Random();
-    final index = random.nextInt(WordGenerator().words.length);
-    return WordGenerator().words[index];
-  }
-}
-
 class _MyHomePageState extends State<MyHomePage> {
-  final TypingContext typingContext = TypingContext();
+  late int seed = 0;
+  late TypingContext typingContext = TypingContext(seed, wordListType);
   final FocusNode focusNode = FocusNode();
-  final TextEditingController controller = TextEditingController();
-  String enteredText = '';
+  WordListType wordListType = WordListType.top100;
+  static const Duration testDuration = Duration(seconds: 30);
+  static const Duration timerTick = Duration(seconds: 1);
+  String? timeLeft;
+  int? wpm;
+  Timer? timer;
+  bool isTestEnabled = true;
 
   @override
   void initState() {
     super.initState();
-    for (int i = 0; i < 100; i++) {
-      typingContext.addWord(WordGenerator.nextWord());
-    }
+    refreshTypingContext();
+  }
+
+  void refreshTypingContext() {
+    seed = Random().nextInt(1 << 32 - 1);
+    typingContext = TypingContext(seed, wordListType);
+    timer?.cancel();
+    timer = null;
+    timeLeft = null;
+    isTestEnabled = true;
+  }
+
+  void startTimer() {
+    timer = Timer.periodic(timerTick, (timer) => onTimerUpdate(timer));
+    onTimerUpdate(timer!);
+  }
+
+  void onTimerUpdate(Timer timer) {
+    setState(() {
+      int timeLeftSeconds = (testDuration - timerTick * timer.tick).inSeconds;
+      timeLeft = timeLeftSeconds.toString();
+      if (timeLeftSeconds <= 0) {
+        wpm = (typingContext.getTypedWordCount() / testDuration.inSeconds * 60)
+            .round();
+        timer.cancel();
+        this.timer = null;
+        timeLeft = null;
+        isTestEnabled = false;
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     bool isCurrentWordWrong =
-        !typingContext.currentWord.startsWith(enteredText);
+        !typingContext.currentWord.startsWith(typingContext.enteredText);
     return RawKeyboardListener(
       focusNode: focusNode,
       autofocus: true,
       onKey: (event) {
-        bool isCtrlPressed = Theme.of(context).platform == TargetPlatform.macOS
-            ? event.isAltPressed
-            : event.isControlPressed;
-        if (event is RawKeyUpEvent) {
-          return;
-        }
+        if (isTestEnabled) {
+          bool isCtrlPressed =
+              Theme.of(context).platform == TargetPlatform.macOS
+                  ? event.isAltPressed
+                  : event.isControlPressed;
+          if (event is RawKeyUpEvent) {
+            return;
+          }
 
-        if (isCtrlPressed && event.logicalKey == LogicalKeyboardKey.backspace) {
-          // Delete whole word
-
-          if (enteredText.isNotEmpty) {
-            setState(() {
-              enteredText = '';
-            });
-          } else {
-            // Try to delete previous word.
-            String? previousWord = typingContext.popWord();
-            if (previousWord != null) {
+          if (isCtrlPressed &&
+              event.logicalKey == LogicalKeyboardKey.backspace) {
+            if (typingContext.deleteFullWord()) {
               setState(() {});
             }
           }
-        }
 
-        // Ignore if this is a modifier key
-        if (event.isAltPressed ||
-            event.isControlPressed ||
-            event.isMetaPressed) {
-          return;
-        }
-
-        if (event.logicalKey == LogicalKeyboardKey.space) {
-          setState(() {
-            typingContext.onWordTyped(enteredText);
-            enteredText = '';
-          });
-        } else if (event.logicalKey == LogicalKeyboardKey.backspace) {
-          if (enteredText.isNotEmpty) {
-            setState(() {
-              enteredText = enteredText.substring(0, enteredText.length - 1);
-            });
-          } else {
-            // Try to pop previous word in line
-            String? previousWord = typingContext.popWord();
-            if (previousWord != null) {
-              setState(() {
-                enteredText = previousWord;
-              });
-            }
+          // Ignore if this is a modifier key
+          if (event.isAltPressed ||
+              event.isControlPressed ||
+              event.isMetaPressed) {
+            return;
           }
-        } else if (event.character != null) {
-          setState(() {
-            enteredText += event.character!.toLowerCase();
-          });
+
+          if (event.logicalKey == LogicalKeyboardKey.space) {
+            setState(() {
+              typingContext.onSpacePressed();
+            });
+          } else if (event.logicalKey == LogicalKeyboardKey.backspace) {
+            if (typingContext.deleteCharacter()) {
+              setState(() {});
+            }
+          } else if (event.character != null) {
+            if (timer == null) startTimer();
+            setState(() {
+              typingContext.onCharacterEntered(event.character!);
+            });
+          }
+
+          focusNode.requestFocus();
         }
       },
       child: Scaffold(
-        appBar: AppBar(
-          title: Text(widget.title),
-        ),
         body: Center(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (typingContext.currentLineIndex > 0) ...{
-                buildLine(typingContext.currentLineIndex - 1),
-              },
-              buildCurrentLine(context, isCurrentWordWrong),
-              buildNextLine(),
-            ],
+          child: FittedBox(
+            child: Stack(
+              children: [
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(start: 6, end: 20),
+                  child: Text('.' * TypingContext.maxLineLength,
+                      style: Theme.of(context)
+                          .textTheme
+                          .headline4
+                          ?.copyWith(color: Colors.transparent)),
+                ),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsetsDirectional.only(start: 8.0),
+                      child: AnimatedCrossFade(
+                        sizeCurve: Curves.easeOutQuad,
+                        firstChild: _buildTitle(
+                            wpm != null ? '$wpm WPM' : 'another typing test'),
+                        secondChild: _buildTitle(timeLeft ?? ''),
+                        duration: Duration(milliseconds: 300),
+                        crossFadeState: timeLeft == null
+                            ? CrossFadeState.showFirst
+                            : CrossFadeState.showSecond,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextButton.icon(
+                          label: const Text('Restart (tab + enter)'),
+                          icon: const Icon(Icons.refresh),
+                          onPressed: () {
+                            setState(() {
+                              refreshTypingContext();
+                            });
+                          },
+                        ),
+                        TextButton.icon(
+                          label: Text(wordListType == WordListType.top100
+                              ? 'Top 100 words'
+                              : 'Top 1000 words'),
+                          icon: const Icon(Icons.notes),
+                          onPressed: () {
+                            setState(() {
+                              if (wordListType == WordListType.top100) {
+                                wordListType = WordListType.top1000;
+                                refreshTypingContext();
+                              } else {
+                                wordListType = WordListType.top100;
+                                refreshTypingContext();
+                              }
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 16),
+                    Stack(
+                      children: [
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (typingContext.currentLineIndex > 0) ...{
+                              buildLine(typingContext.currentLineIndex - 1),
+                            },
+                            buildCurrentLine(context, isCurrentWordWrong),
+                            buildLineAtOffset(1),
+                            if (typingContext.currentLineIndex == 0)
+                              buildLineAtOffset(2),
+                          ],
+                        ),
+                        Positioned.fill(
+                          child: AnimatedOpacity(
+                            opacity: isTestEnabled ? 0 : 1,
+                            duration: const Duration(milliseconds: 300),
+                            child: Container(
+                              color: Theme.of(context).scaffoldBackgroundColor,
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text('Test completed',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .headline4
+                                        ?.copyWith(
+                                            color:
+                                                Theme.of(context).hintColor)),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget buildNextLine() {
+  Text _buildTitle(String text) {
     return Text(
-      typingContext.lines[typingContext.currentLineIndex + 1].join(' '),
-      style: TextStyle(fontSize: 50, color: Theme.of(context).hintColor),
+      text,
+      style: Theme.of(context).textTheme.headline5?.copyWith(
+            color: ThemeColors.green,
+          ),
+    );
+  }
+
+  Widget buildLineAtOffset(int offset) {
+    final nextLineStart =
+        typingContext.getLineStart(typingContext.currentLineIndex + offset);
+
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(start: 6, end: 20),
+      child: Text(
+        typingContext.getLine(nextLineStart),
+        style: Theme.of(context)
+            .textTheme
+            .headline4
+            ?.copyWith(color: Theme.of(context).hintColor),
+      ),
     );
   }
 
   Widget buildLine(int lineIndex) {
+    List<TypedWord> typedWords = typingContext.getTypedLine(lineIndex);
     return Padding(
       padding: const EdgeInsetsDirectional.only(start: 6, end: 20),
       child: RichText(
         text: TextSpan(
           children: [
-            for (TypedWord typedWord
-                in typingContext.getTypedLine(lineIndex)) ...{
+            for (TypedWord typedWord in typedWords) ...{
               TextSpan(
                 text: typedWord.value,
                 style: TextStyle(
@@ -198,30 +301,32 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                 ),
               },
-              TextSpan(
-                text: ' ',
-                style: TextStyle(
-                  color: Theme.of(context).hintColor,
+              if (typedWord != typedWords.last)
+                TextSpan(
+                  text: ' ',
+                  style: TextStyle(
+                    color: Theme.of(context).hintColor,
+                  ),
                 ),
-              ),
             },
           ],
-          style: TextStyle(fontSize: 50),
+          style: Theme.of(context).textTheme.headline4,
         ),
       ),
     );
   }
 
   Stack buildCurrentLine(BuildContext context, bool isCurrentWordWrong) {
+    final remainingWords = typingContext.getRemainingWords();
     return Stack(
       alignment: Alignment.centerLeft,
-      // mainAxisAlignment: MainAxisAlignment.center,
       children: <Widget>[
         Row(
           mainAxisAlignment: MainAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             AnimatedSize(
+              alignment: Alignment.centerLeft,
               duration: const Duration(milliseconds: 200),
               curve: Curves.easeOutCubic,
               child: RichText(
@@ -230,20 +335,34 @@ class _MyHomePageState extends State<MyHomePage> {
                     for (TypedWord typedWord in typingContext
                         .getTypedLine(typingContext.currentLineIndex)) ...{
                       TextSpan(
-                        text: typedWord.value + (typedWord.trailingHint ?? ' '),
+                        text: typedWord.value,
+                      ),
+                      if (typedWord.trailingHint != null) ...{
+                        TextSpan(
+                          text: typedWord.trailingHint,
+                        ),
+                      },
+                      const TextSpan(
+                        text: ' ',
                       ),
                     },
                     TextSpan(
-                      text: enteredText,
+                      text: typingContext.enteredText,
                     ),
                   ],
-                  style: TextStyle(fontSize: 50, color: Colors.transparent),
+                  style: Theme.of(context)
+                      .textTheme
+                      .headline4
+                      ?.copyWith(color: Colors.transparent),
                 ),
               ),
             ),
             Text(
               '|',
-              style: TextStyle(fontSize: 50, color: Color(0xFFFAD000)),
+              style: Theme.of(context)
+                  .textTheme
+                  .headline4
+                  ?.copyWith(color: const Color(0xFFFAD000)),
             ),
           ],
         ),
@@ -278,22 +397,31 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                 },
                 TextSpan(
-                  text: enteredText,
+                  text: typingContext.enteredText,
                   style: TextStyle(
                     color: isCurrentWordWrong
                         ? ThemeColors.red
                         : ThemeColors.green,
                   ),
                 ),
-                TextSpan(
-                  text: typingContext.remainingWords.substring(min(
-                      enteredText.length, typingContext.remainingWords.length)),
-                  style: TextStyle(
-                    color: Theme.of(context).hintColor,
+                if (remainingWords.isNotEmpty)
+                  TextSpan(
+                    text: remainingWords.first.substring(min(
+                        typingContext.enteredText.length,
+                        remainingWords.first.length)),
+                    style: TextStyle(
+                      color: Theme.of(context).hintColor,
+                    ),
                   ),
-                ),
+                if (remainingWords.length > 1)
+                  TextSpan(
+                    text: ' ' + remainingWords.skip(1).join(' '),
+                    style: TextStyle(
+                      color: Theme.of(context).hintColor,
+                    ),
+                  ),
               ],
-              style: TextStyle(fontSize: 50),
+              style: Theme.of(context).textTheme.headline4,
             ),
           ),
         ),
