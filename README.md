@@ -1,3 +1,7 @@
-# another_typing_test
+# another typing test
 
-A [typing test](http://type.jeffsieu.com/) made in Flutter.
+![banner](assets/banner.png)
+
+Yet another typing test made in Flutter, because why not.
+
+Try it [here](http://type.jeffsieu.com/)

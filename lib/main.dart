@@ -13,7 +13,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   String data = await loadWordList();
   WordGenerator.initializeWordList(
-      data.split('\n').map((word) => word.trim()).toList());
+    data.split('\n').map((word) => word.trim()).toList(),
+  );
   runApp(const MyApp());
 }
 
@@ -40,33 +41,36 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const HomePage(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({Key? key, required this.title}) : super(key: key);
-
-  final String title;
+class HomePage extends StatefulWidget {
+  const HomePage({Key? key}) : super(key: key);
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<HomePage> createState() => _HomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage>
+class _HomePageState extends State<HomePage>
     with SingleTickerProviderStateMixin {
-  late int seed = 0;
-  late TypingContext typingContext = TypingContext(seed, wordListType);
-  final FocusNode focusNode = FocusNode();
-  WordListType wordListType = WordListType.top200;
   static const Duration testDuration = Duration(seconds: 30);
   static const Duration timerTick = Duration(seconds: 1);
   static const Duration cursorFadeDuration = Duration(milliseconds: 750);
+
+  final FocusNode focusNode = FocusNode();
   late final AnimationController cursorAnimation = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 500),
   );
+
+  // Settings
+  WordListType wordListType = WordListType.top200;
+
+  // Test-specific variables
+  late int seed = 0;
+  late TypingContext typingContext = TypingContext(seed, wordListType);
   String? timeLeft;
   int? wpm;
   Timer? timer;
@@ -117,7 +121,6 @@ class _MyHomePageState extends State<MyHomePage>
 
   void resetCursor() {
     cursorAnimation.value = 1;
-    // call after delay
     cursorResetTimer?.cancel();
     cursorResetTimer = Timer(cursorFadeDuration, () {
       cursorAnimation.repeat(reverse: true);
@@ -165,11 +168,13 @@ class _MyHomePageState extends State<MyHomePage>
               children: [
                 Padding(
                   padding: const EdgeInsetsDirectional.only(start: 6, end: 20),
-                  child: Text('.' * TypingContext.maxLineLength,
-                      style: Theme.of(context)
-                          .textTheme
-                          .headline4
-                          ?.copyWith(color: Colors.transparent)),
+                  child: Text(
+                    '.' * TypingContext.maxLineLength,
+                    style: Theme.of(context)
+                        .textTheme
+                        .headline4
+                        ?.copyWith(color: Colors.transparent),
+                  ),
                 ),
                 Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -180,7 +185,8 @@ class _MyHomePageState extends State<MyHomePage>
                       child: AnimatedCrossFade(
                         sizeCurve: Curves.easeOutQuad,
                         firstChild: _buildTitle(
-                            wpm != null ? '$wpm WPM' : 'another typing test'),
+                          wpm != null ? '$wpm WPM' : 'another typing test',
+                        ),
                         secondChild: _buildTitle(timeLeft ?? ''),
                         duration: const Duration(milliseconds: 300),
                         crossFadeState: timeLeft == null
@@ -252,19 +258,21 @@ class _MyHomePageState extends State<MyHomePage>
                               color: Theme.of(context).scaffoldBackgroundColor,
                               child: Align(
                                 alignment: Alignment.centerLeft,
-                                child: Text('Test completed',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .headline4
-                                        ?.copyWith(
-                                            color:
-                                                Theme.of(context).hintColor)),
+                                child: Text(
+                                  'Test completed',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headline4
+                                      ?.copyWith(
+                                        color: Theme.of(context).hintColor,
+                                      ),
+                                ),
                               ),
                             ),
                           ),
                         ),
                       ],
-                    )
+                    ),
                   ],
                 ),
               ],
@@ -391,7 +399,7 @@ class _MyHomePageState extends State<MyHomePage>
                 },
                 child: Container(
                   width: 4,
-                  color: const Color(0xFFFAD000),
+                  color: ThemeColors.yellow,
                 ),
               ),
             ],
@@ -437,9 +445,12 @@ class _MyHomePageState extends State<MyHomePage>
                 ),
                 if (remainingWords.isNotEmpty)
                   TextSpan(
-                    text: remainingWords.first.substring(min(
+                    text: remainingWords.first.substring(
+                      min(
                         typingContext.enteredText.length,
-                        remainingWords.first.length)),
+                        remainingWords.first.length,
+                      ),
+                    ),
                     style: TextStyle(
                       color: Theme.of(context).hintColor,
                     ),

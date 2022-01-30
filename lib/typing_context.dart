@@ -89,8 +89,10 @@ class TypingContext {
 
   List<String> getRemainingWords() {
     int currentLineStart = getLineStart(currentLineIndex);
-    assert(currentWordIndex >= currentLineStart,
-        '$currentWordIndex < $currentLineStart');
+    assert(
+      currentWordIndex >= currentLineStart,
+      '$currentWordIndex < $currentLineStart',
+    );
     return words
         .skip(currentLineStart)
         .take(_getWordsInLine(currentLineStart))
