@@ -175,11 +175,6 @@ class _MyHomePageState extends State<MyHomePage>
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(typingContext.lineStarts.join(' '),
-                        style: TextStyle(color: Theme.of(context).hintColor)),
-                    Text(
-                        'line ${typingContext.currentLineIndex} word ${typingContext.currentWordIndex}',
-                        style: TextStyle(color: Theme.of(context).hintColor)),
                     Padding(
                       padding: const EdgeInsetsDirectional.only(start: 8.0),
                       child: AnimatedCrossFade(
