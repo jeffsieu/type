@@ -1,3 +1,3 @@
 # another_typing_test
 
-A typing test made in Flutter.
+A [typing test](http://type.jeffsieu.com/) made in Flutter.

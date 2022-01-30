@@ -38,6 +38,9 @@ class TypingContext {
 
   String get enteredText => _enteredText;
   set enteredText(String value) {
+    bool previouslyOvershot = _enteredText.length > currentWord.length;
+    bool currentlyOvershot = value.length > currentWord.length;
+
     if (value.length > maxWordLength) {
       return;
     } else {
@@ -50,10 +53,10 @@ class TypingContext {
       }
     }
     _enteredText = value;
-    if (_enteredText.length - currentWord.length > 0) {
+    if (previouslyOvershot || currentlyOvershot) {
       // If the user has entered a word that is one character off,
       // recalculate remaining words
-      lineStarts.removeRange(currentLineIndex, lineStarts.length);
+      lineStarts.removeRange(currentLineIndex + 1, lineStarts.length);
     }
   }
 
@@ -86,7 +89,8 @@ class TypingContext {
 
   List<String> getRemainingWords() {
     int currentLineStart = getLineStart(currentLineIndex);
-    assert(currentWordIndex >= currentLineStart);
+    assert(currentWordIndex >= currentLineStart,
+        '$currentWordIndex < $currentLineStart');
     return words
         .skip(currentLineStart)
         .take(_getWordsInLine(currentLineStart))
@@ -157,7 +161,6 @@ class TypingContext {
 
   void onSpacePressed() {
     onWordTyped(enteredText);
-    enteredText = '';
   }
 
   bool deleteCharacter() {
@@ -243,6 +246,7 @@ class TypingContext {
     } else {
       misspelledWords.remove(currentWordIndex);
     }
+    enteredText = '';
     currentWordIndex++;
   }
 }
