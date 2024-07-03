@@ -130,6 +130,8 @@ class TypingContext {
       currentWordIndex--;
       return poppedWord;
     }
+
+    return null;
   }
 
   TypedWord getTypedWord(int wordIndex) {

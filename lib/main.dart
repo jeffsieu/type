@@ -30,8 +30,9 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'another typing test',
       theme: ThemeData.from(
-        colorScheme: const ColorScheme.dark(
-          background: Color(0xFF222244),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.deepPurple,
+          brightness: Brightness.dark,
         ),
         textTheme: GoogleFonts.robotoMonoTextTheme(),
       ).copyWith(
@@ -172,7 +173,7 @@ class _HomePageState extends State<HomePage>
                     '.' * TypingContext.maxLineLength,
                     style: Theme.of(context)
                         .textTheme
-                        .headline4
+                        .headlineMedium
                         ?.copyWith(color: Colors.transparent),
                   ),
                 ),
@@ -228,11 +229,11 @@ class _HomePageState extends State<HomePage>
                           switchOutCurve: const Interval(0.5, 1.0),
                           layoutBuilder: (currentChild, previousChildren) {
                             return Stack(
+                              alignment: Alignment.topLeft,
                               children: [
                                 ...previousChildren,
                                 if (currentChild != null) currentChild,
                               ],
-                              alignment: Alignment.topLeft,
                             );
                           },
                           child: Column(
@@ -262,7 +263,7 @@ class _HomePageState extends State<HomePage>
                                   'Test completed',
                                   style: Theme.of(context)
                                       .textTheme
-                                      .headline4
+                                      .headlineMedium
                                       ?.copyWith(
                                         color: Theme.of(context).hintColor,
                                       ),
@@ -286,7 +287,7 @@ class _HomePageState extends State<HomePage>
   Text _buildTitle(String text) {
     return Text(
       text,
-      style: Theme.of(context).textTheme.headline5?.copyWith(
+      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
             color: ThemeColors.green,
           ),
     );
@@ -302,7 +303,7 @@ class _HomePageState extends State<HomePage>
         typingContext.getLine(nextLineStart),
         style: Theme.of(context)
             .textTheme
-            .headline4
+            .headlineMedium
             ?.copyWith(color: Theme.of(context).hintColor),
       ),
     );
@@ -340,7 +341,7 @@ class _HomePageState extends State<HomePage>
                 ),
             },
           ],
-          style: Theme.of(context).textTheme.headline4,
+          style: Theme.of(context).textTheme.headlineMedium,
         ),
       ),
     );
@@ -383,7 +384,7 @@ class _HomePageState extends State<HomePage>
                     ],
                     style: Theme.of(context)
                         .textTheme
-                        .headline4
+                        .headlineMedium
                         ?.copyWith(color: Colors.transparent),
                   ),
                 ),
@@ -457,13 +458,13 @@ class _HomePageState extends State<HomePage>
                   ),
                 if (remainingWords.length > 1)
                   TextSpan(
-                    text: ' ' + remainingWords.skip(1).join(' '),
+                    text: ' ${remainingWords.skip(1).join(' ')}',
                     style: TextStyle(
                       color: Theme.of(context).hintColor,
                     ),
                   ),
               ],
-              style: Theme.of(context).textTheme.headline4,
+              style: Theme.of(context).textTheme.headlineMedium,
             ),
           ),
         ),

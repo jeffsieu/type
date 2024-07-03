@@ -23,16 +23,16 @@ class InputListener extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return RawKeyboardListener(
+    return KeyboardListener(
       focusNode: focusNode,
       autofocus: true,
-      onKey: (event) {
+      onKeyEvent: (event) {
         if (enabled) {
           bool isCtrlPressed =
               Theme.of(context).platform == TargetPlatform.macOS
-                  ? event.isAltPressed
-                  : event.isControlPressed;
-          if (event is RawKeyUpEvent) {
+                  ? HardwareKeyboard.instance.isAltPressed
+                  : HardwareKeyboard.instance.isControlPressed;
+          if (event is KeyUpEvent) {
             return;
           }
 
@@ -42,9 +42,9 @@ class InputListener extends StatelessWidget {
           }
 
           // Ignore if this is a modifier key
-          if (event.isAltPressed ||
-              event.isControlPressed ||
-              event.isMetaPressed) {
+          if (HardwareKeyboard.instance.isAltPressed ||
+              HardwareKeyboard.instance.isControlPressed ||
+              HardwareKeyboard.instance.isMetaPressed) {
             return;
           }
 
